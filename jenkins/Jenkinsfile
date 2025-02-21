@@ -1,0 +1,88 @@
+pipeline {
+    agent any
+
+    environment {
+        REPO_URL = 'https://github.com/your-username/your-repo.git'
+        BRANCH = 'main'
+        STAGING_ENV = 'staging'
+        PRODUCTION_ENV = 'production'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code from the repository...'
+                git branch: "${BRANCH}", url: "${REPO_URL}"
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Building the code...'
+                sh './build.sh'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                sh './run-tests.sh'
+            }
+            post {
+                success {
+                    echo 'All tests passed!'
+                }
+                failure {
+                    echo 'Tests failed! Pipeline will stop.'
+                    error('Pipeline failed due to test failures.')
+                }
+            }
+        }
+
+        stage('Deploy to Staging') {
+            steps {
+                echo 'Deploying to Staging environment...'
+                sh "./deploy.sh ${STAGING_ENV}"
+            }
+            post {
+                success {
+                    echo 'Deployment to Staging succeeded!'
+                }
+                failure {
+                    echo 'Deployment to Staging failed!'
+                    error('Pipeline failed due to deployment issues.')
+                }
+            }
+        }
+
+        stage('Approve for Production') {
+            steps {
+                echo 'Waiting for manual approval to deploy to Production...'
+                input message: 'Deploy to Production?', ok: 'Deploy'
+            }
+        }
+
+        stage('Deploy to Production') {
+            steps {
+                echo 'Deploying to Production environment...'
+                sh "./deploy.sh ${PRODUCTION_ENV}"
+            }
+            post {
+                success {
+                    echo 'Deployment to Production succeeded!'
+                }
+                failure {
+                    echo 'Deployment to Production failed!'
+                    error('Pipeline failed due to deployment issues.')
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up workspace...'
+            cleanWs()
+        }
+    }
+}

@@ -1,0 +1,25 @@
+# Ignore all .sh scripts with "setup" in the name
+*setup*.sh
+
+# Terraform state files
+*.tfstate
+*.tfstate.backup
+terraform.tfstate.d/
+
+# Terraform crash logs
+crash.log
+
+# Ignore Terraform provider plugins
+.terraform/
+.terraform.lock.hcl
+
+# Ignore environment variable files
+.env
+
+# Ignore sensitive AWS credentials (if any)
+.aws/
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+*.swp
