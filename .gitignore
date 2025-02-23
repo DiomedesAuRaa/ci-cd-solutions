@@ -1,6 +1,6 @@
 # Ignore all .sh scripts with "setup" in the name
 *setup*.sh
-
+trust-policy.json
 # Terraform state files
 *.tfstate
 *.tfstate.backup
