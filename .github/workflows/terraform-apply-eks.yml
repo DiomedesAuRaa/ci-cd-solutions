@@ -1,0 +1,75 @@
+name: 'Apply Terraform Configuration'
+
+on:
+  workflow_dispatch:  # Manual trigger to apply infrastructure
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform:
+    name: 'Terraform Apply'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout Current Repository
+        uses: actions/checkout@v4
+
+      - name: Clone External Terraform Repository
+        run: |
+          git clone https://github.com/DiomedesAuRaa/aws-terraform-stack.git
+
+      - name: Verify Cloned Files
+        run: ls -la aws-terraform-stack/eks
+ 
+      - name: Create terraform.tfvars
+        working-directory: aws-terraform-stack/eks
+        run: |
+          cat > terraform.tfvars <<EOF
+          aws_access_key = "${{ secrets.AWS_ACCESS_KEY_ID }}"
+          aws_secret_key = "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          region         = "us-east-1"
+          EOF
+          
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+          aws-region: us-east-1
+
+      - name: Initialize Terraform
+        working-directory: aws-terraform-stack/eks
+        run: terraform init
+
+      - name: Terraform Plan with Retry
+        working-directory: aws-terraform-stack/eks
+        run: |
+          retries=5
+          delay=10
+          for i in $(seq 1 $retries); do
+            terraform plan -out=tfplan -lock=false && break
+            echo "Terraform plan failed. Retrying ($i/$retries)..."
+            sleep $delay
+          done
+
+      - name: Show Terraform Plan Output (Debugging)
+        if: failure()  # Only runs if the previous step fails
+        run: |
+          echo "Terraform plan failed, printing debug information..."
+          terraform plan
+
+      - name: Terraform Apply
+        working-directory: aws-terraform-stack/eks
+        run: terraform apply -lock=false tfplan 
+        if: success()  # Only runs if terraform plan was successful
