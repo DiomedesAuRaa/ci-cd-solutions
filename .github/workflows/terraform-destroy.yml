@@ -1,23 +1,15 @@
-name: 'Apply External Terraform Configuration'
+name: 'Destroy Terraform Configuration'
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_dispatch:  # Manual trigger to destroy infrastructure
 
 permissions:
   id-token: write
   contents: read
 
-concurrency:
-  group: terraform-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   terraform:
-    name: 'Terraform Apply'
-    # environment: production 
+    name: 'Terraform Destroy'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     
@@ -31,7 +23,7 @@ jobs:
 
       - name: Verify Cloned Files
         run: ls -la aws-terraform-stack/eks
- 
+      
       - name: Create terraform.tfvars
         working-directory: aws-terraform-stack/eks
         run: |
@@ -56,24 +48,19 @@ jobs:
         working-directory: aws-terraform-stack/eks
         run: terraform init
 
-      - name: Terraform Plan with Retry
+      - name: Terraform Destroy with Retry
         working-directory: aws-terraform-stack/eks
         run: |
           retries=5
           delay=10
           for i in $(seq 1 $retries); do
-            terraform plan -out=tfplan -lock=false && break
-            echo "Terraform plan failed. Retrying ($i/$retries)..."
+            terraform destroy -auto-approve -lock=false && break
+            echo "Terraform destroy failed. Retrying ($i/$retries)..."
             sleep $delay
           done
 
-      - name: Show Terraform Plan Output (Debugging)
+      - name: Show Terraform Destroy Output (Debugging)
         if: failure()  # Only runs if the previous step fails
         run: |
-          echo "Terraform plan failed, printing debug information..."
-          terraform plan
-
-      - name: Terraform Apply
-        working-directory: aws-terraform-stack/eks
-        run: terraform apply -lock=false tfplan 
-        if: success()  # Only runs if terraform plan was successful
+          echo "Terraform destroy failed, printing debug information..."
+          terraform destroy -auto-approve
