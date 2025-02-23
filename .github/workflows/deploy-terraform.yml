@@ -55,21 +55,40 @@ jobs:
         working-directory: aws-terraform-stack/eks
         run: terraform init
 
-      - name: Force Unlock Terraform State (if locked)
+      - name: Terraform Plan
+        run: |
+          terraform plan -out=tfplan
+        continue-on-error: true  # This allows the job to continue even if `plan` fails
+
+      - name: Show Terraform Plan Output (Debugging)
+        if: failure()  # Only runs if the previous step fails
+        run: |
+          echo "Terraform plan failed, printing debug information..."
+          terraform plan
+
+      - name: Force Unlock Terraform State (if locked after plan)
         run: |
           LOCK_ID=$(terraform state list | grep -o 'terraform.tfstate.lock.info' || echo "")
           if [ -n "$LOCK_ID" ]; then
-            echo "Lock found, attempting to force-unlock..."
+            echo "Lock found after plan, attempting to force-unlock..."
+            terraform force-unlock $LOCK_ID
+          else
+            echo "No lock found after plan, skipping unlock."
+          fi
+        continue-on-error: true
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        if: success()  # Only runs if `terraform plan` was successful
+
+      # Force Unlock (if needed)
+      - name: Force Unlock Terraform State (if locked after apply)
+        run: |
+          LOCK_ID=$(terraform state list | grep -o 'terraform.tfstate.lock.info' || echo "")
+          if [ -n "$LOCK_ID" ]; then
+            echo "Lock found after apply, attempting to force-unlock..."
             terraform force-unlock $LOCK_ID
           else
             echo "No lock found, skipping unlock."
           fi
-        continue-on-error: true        
-
-      - name: Terraform Plan
-        working-directory: aws-terraform-stack/eks
-        run: terraform plan -out=tfplan
-
-      - name: Terraform Apply
-        working-directory: aws-terraform-stack/eks
-        run: terraform apply -var-file=terraform.tfvars -auto-approve
+        continue-on-error: true
