@@ -72,14 +72,8 @@ jobs:
           echo "Terraform plan failed, printing debug information..."
           terraform plan
 
-      - name: Terraform Apply
+      - name: Terraform Apply with Manual Approval
         working-directory: aws-terraform-stack/eks
-        run: |
-            read -p "Are you sure you want to apply the Terraform plan? (y/n): " confirmation
-            if [[ "$confirmation" == "y" || "$confirmation" == "Y" ]]; then
-              terraform apply tfplan -lock=false
-            else
-              echo "Terraform apply was skipped."
-              exit 0
-            fi
-        if: success()  # Only runs if `terraform plan` was successful
+        # environment: production  # This will trigger manual approval
+        run: terraform apply tfplan
+        if: success()  # Only runs if terraform plan was successful
