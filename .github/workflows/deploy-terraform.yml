@@ -74,5 +74,12 @@ jobs:
 
       - name: Terraform Apply
         working-directory: aws-terraform-stack/eks
-        run: terraform apply -auto-approve tfplan
+        run: |
+            read -p "Are you sure you want to apply the Terraform plan? (y/n): " confirmation
+            if [[ "$confirmation" == "y" || "$confirmation" == "Y" ]]; then
+              terraform apply tfplan -lock=false
+            else
+              echo "Terraform apply was skipped."
+              exit 0
+            fi
         if: success()  # Only runs if `terraform plan` was successful
