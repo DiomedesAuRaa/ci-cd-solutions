@@ -18,7 +18,8 @@ jobs:
   terraform:
     name: 'Terraform Apply'
     runs-on: ubuntu-latest
-
+    timeout-minutes: 30  # This sets the timeout for the entire job (30 minutes)
+    
     steps:
       - name: Checkout Current Repository
         uses: actions/checkout@v4
@@ -38,7 +39,6 @@ jobs:
           aws_secret_key = "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           region         = "us-east-1"
           EOF
-
           
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -55,6 +55,17 @@ jobs:
         working-directory: aws-terraform-stack/eks
         run: terraform init
 
+      - name: Force Unlock Terraform State (if locked)
+        run: |
+          LOCK_ID=$(terraform state list | grep -o 'terraform.tfstate.lock.info' || echo "")
+          if [ -n "$LOCK_ID" ]; then
+            echo "Lock found, attempting to force-unlock..."
+            terraform force-unlock $LOCK_ID
+          else
+            echo "No lock found, skipping unlock."
+          fi
+        continue-on-error: true        
+
       - name: Terraform Plan
         working-directory: aws-terraform-stack/eks
         run: terraform plan -out=tfplan
@@ -62,9 +73,3 @@ jobs:
       - name: Terraform Apply
         working-directory: aws-terraform-stack/eks
         run: terraform apply -var-file=terraform.tfvars -auto-approve
-        
-      # Force Unlock (if needed)
-      - name: Force Unlock Terraform State (if locked)
-        run: |
-          terraform force-unlock $(terraform state list | grep 'terraform.tfstate.lock.info')
-        continue-on-error: true        
