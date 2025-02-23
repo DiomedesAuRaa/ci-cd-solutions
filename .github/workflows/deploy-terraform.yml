@@ -21,12 +21,19 @@ jobs:
 
       - name: Clone External Terraform Repository
         run: |
-          # git clone https://github.com/DiomedesAuRaa/aws-terraform-stack.git
-          # cd aws-terraform-stack/eks
-          # ls -la aws-terraform-stack/eks
           git clone https://github.com/DiomedesAuRaa/aws-terraform-stack.git
-          ls -la
-          ls -la aws-terraform-stack
+
+      - name: Verify Cloned Files
+        run: ls -la aws-terraform-stack/eks
+ 
+      - name: Create terraform.tfvars
+        working-directory: aws-terraform-stack/eks
+        run: |
+          cat <<EOF > terraform.tfvars
+          aws_access_key = "${{ secrets.AWS_ACCESS_KEY_ID }}"
+          aws_secret_key = "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          region         = "us-east-1"
+          EOF        
           
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -49,4 +56,4 @@ jobs:
 
       - name: Terraform Apply
         working-directory: aws-terraform-stack/eks
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -var-file=terraform.tfvars -auto-approve
