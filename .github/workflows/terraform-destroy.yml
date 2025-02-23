@@ -54,7 +54,7 @@ jobs:
           retries=5
           delay=10
           for i in $(seq 1 $retries); do
-            terraform destroy -auto-approve -lock=false && break
+            terraform destroy -input=true -lock=false && break
             echo "Terraform destroy failed. Retrying ($i/$retries)..."
             sleep $delay
           done
