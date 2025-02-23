@@ -27,7 +27,6 @@ jobs:
       - name: Clone External Terraform Repository
         run: |
           git clone https://github.com/DiomedesAuRaa/aws-terraform-stack.git
-          cd aws-terraform-stack/eks
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
