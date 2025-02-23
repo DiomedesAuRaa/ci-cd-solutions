@@ -18,8 +18,8 @@ jobs:
   terraform:
     name: 'Terraform Apply'
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # Timeout for the entire job (30 minutes)
-
+    timeout-minutes: 30
+    
     steps:
       - name: Checkout Current Repository
         uses: actions/checkout@v4
@@ -28,6 +28,18 @@ jobs:
         run: |
           git clone https://github.com/DiomedesAuRaa/aws-terraform-stack.git
 
+      - name: Verify Cloned Files
+        run: ls -la aws-terraform-stack/eks
+ 
+      - name: Create terraform.tfvars
+        working-directory: aws-terraform-stack/eks
+        run: |
+          cat > terraform.tfvars <<EOF
+          aws_access_key = "${{ secrets.AWS_ACCESS_KEY_ID }}"
+          aws_secret_key = "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          region         = "us-east-1"
+          EOF
+          
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -39,14 +51,9 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
           aws-region: us-east-1
 
-      - name: Create terraform.tfvars
+      - name: Initialize Terraform
         working-directory: aws-terraform-stack/eks
-        run: |
-          cat > terraform.tfvars <<EOF
-          aws_access_key = "${{ secrets.AWS_ACCESS_KEY_ID }}"
-          aws_secret_key = "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-          region         = "us-east-1"
-          EOF
+        run: terraform init
 
       - name: Force Unlock Terraform State (if locked)
         run: |
@@ -57,45 +64,12 @@ jobs:
           else
             echo "No lock found, skipping unlock."
           fi
-        continue-on-error: true
-
-      - name: Initialize Terraform
-        run: terraform init
+        continue-on-error: true        
 
       - name: Terraform Plan
-        run: |
-          terraform plan -out=tfplan
-        continue-on-error: true  # This allows the job to continue even if `plan` fails
-
-      - name: Show Terraform Plan Output (Debugging)
-        if: failure()  # Only runs if the previous step fails
-        run: |
-          echo "Terraform plan failed, printing debug information..."
-          terraform plan
-
-      - name: Force Unlock Terraform State (if locked after plan)
-        run: |
-          LOCK_ID=$(terraform state list | grep -o 'terraform.tfstate.lock.info' || echo "")
-          if [ -n "$LOCK_ID" ]; then
-            echo "Lock found after plan, attempting to force-unlock..."
-            terraform force-unlock $LOCK_ID
-          else
-            echo "No lock found after plan, skipping unlock."
-          fi
-        continue-on-error: true
+        working-directory: aws-terraform-stack/eks
+        run: terraform plan -out=tfplan
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
-        if: success()  # Only runs if `terraform plan` was successful
-
-      # Force Unlock (if needed)
-      - name: Force Unlock Terraform State (if locked after apply)
-        run: |
-          LOCK_ID=$(terraform state list | grep -o 'terraform.tfstate.lock.info' || echo "")
-          if [ -n "$LOCK_ID" ]; then
-            echo "Lock found after apply, attempting to force-unlock..."
-            terraform force-unlock $LOCK_ID
-          else
-            echo "No lock found, skipping unlock."
-          fi
-        continue-on-error: true
+        working-directory: aws-terraform-stack/eks
+        run: terraform apply -var-file=terraform.tfvars -auto-approve
