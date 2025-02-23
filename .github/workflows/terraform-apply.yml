@@ -1,4 +1,4 @@
-name: 'Apply External Terraform Configuration'
+name: 'Apply Terraform Configuration'
 
 on:
   workflow_dispatch:  # Manual trigger to apply infrastructure
