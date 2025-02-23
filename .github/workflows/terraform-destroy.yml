@@ -2,6 +2,11 @@ name: 'Destroy Terraform Configuration'
 
 on:
   workflow_dispatch:  # Manual trigger to destroy infrastructure
+    inputs:
+      confirm_destroy:
+        description: 'Do you want to destroy the resources? Type "yes" to proceed.'
+        required: true
+        default: 'no'
 
 permissions:
   id-token: write
@@ -23,7 +28,7 @@ jobs:
 
       - name: Verify Cloned Files
         run: ls -la aws-terraform-stack/eks
-      
+
       - name: Create terraform.tfvars
         working-directory: aws-terraform-stack/eks
         run: |
@@ -47,6 +52,13 @@ jobs:
       - name: Initialize Terraform
         working-directory: aws-terraform-stack/eks
         run: terraform init
+
+      - name: Manual Approval to Destroy Resources
+        run: |
+          if [ "${{ github.event.inputs.confirm_destroy }}" != "yes" ]; then
+            echo "Destroy operation aborted. You must type 'yes' to proceed."
+            exit 1
+          fi
 
       - name: Terraform Destroy with Retry
         working-directory: aws-terraform-stack/eks
