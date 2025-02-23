@@ -1,10 +1,7 @@
 name: 'Apply External Terraform Configuration'
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_dispatch:  # Manual trigger to apply infrastructure
 
 permissions:
   id-token: write
