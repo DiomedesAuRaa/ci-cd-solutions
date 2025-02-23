@@ -73,5 +73,6 @@ jobs:
           terraform plan
 
       - name: Terraform Apply
+        working-directory: aws-terraform-stack/eks
         run: terraform apply -auto-approve tfplan
         if: success()  # Only runs if `terraform plan` was successful
