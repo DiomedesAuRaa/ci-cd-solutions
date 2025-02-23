@@ -74,6 +74,6 @@ jobs:
 
       - name: Terraform Apply with Manual Approval
         working-directory: aws-terraform-stack/eks
-        # environment: production  # This will trigger manual approval
-        run: terraform apply tfplan
+        environment: production  # This will trigger manual approval
+        run: terraform apply tfplan  -lock=false 
         if: success()  # Only runs if terraform plan was successful
