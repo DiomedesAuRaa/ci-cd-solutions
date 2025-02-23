@@ -1,191 +1,45 @@
-name: Deploy Terraform Code
+name: 'Apply External Terraform Configuration'
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch: # Allows manual triggering of the workflow
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
-  validate:
-    name: Validate Terraform
+  terraform:
+    name: 'Terraform Apply'
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Terraform Repo
-        uses: actions/checkout@v3
-        with:
-          repository: your-username/your-terraform-repo # Replace with your Terraform repo
-          path: terraform-code # Checkout Terraform code into a subdirectory
+      - name: Checkout Current Repository
+        uses: actions/checkout@v4
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.0
+      - name: Clone External Terraform Repository
+        run: |
+          git clone https://github.com/DiomedesAuRaa/aws-terraform-stack.git
+          cd aws-terraform-stack/eks
 
-      - name: Terraform Init
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/YOUR_GITHUB_ACTIONS_ROLE
+          aws-region: us-east-1  # Change to your desired region
+
+      - name: Initialize Terraform
         run: terraform init
-        working-directory: ./terraform-code
 
-      - name: Terraform Validate
-        run: terraform validate
-        working-directory: ./terraform-code
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
 
-  plan-dev:
-    name: Plan Terraform for Dev
-    runs-on: ubuntu-latest
-    needs: validate
-    steps:
-      - name: Checkout Terraform Repo
-        uses: actions/checkout@v3
-        with:
-          repository: your-username/your-terraform-repo # Replace with your Terraform repo
-          path: terraform-code # Checkout Terraform code into a subdirectory
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.0
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./terraform-code
-
-      - name: Terraform Plan for Dev
-        run: terraform plan -var-file=dev.tfvars
-        working-directory: ./terraform-code
-
-  apply-dev:
-    name: Apply Terraform for Dev
-    runs-on: ubuntu-latest
-    needs: plan-dev
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout Terraform Repo
-        uses: actions/checkout@v3
-        with:
-          repository: your-username/your-terraform-repo # Replace with your Terraform repo
-          path: terraform-code # Checkout Terraform code into a subdirectory
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.0
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./terraform-code
-
-      - name: Terraform Apply for Dev
-        run: terraform apply -auto-approve -var-file=dev.tfvars
-        working-directory: ./terraform-code
-
-  plan-stage:
-    name: Plan Terraform for Stage
-    runs-on: ubuntu-latest
-    needs: apply-dev
-    steps:
-      - name: Checkout Terraform Repo
-        uses: actions/checkout@v3
-        with:
-          repository: your-username/your-terraform-repo # Replace with your Terraform repo
-          path: terraform-code # Checkout Terraform code into a subdirectory
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.0
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./terraform-code
-
-      - name: Terraform Plan for Stage
-        run: terraform plan -var-file=stage.tfvars
-        working-directory: ./terraform-code
-
-  apply-stage:
-    name: Apply Terraform for Stage
-    runs-on: ubuntu-latest
-    needs: plan-stage
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout Terraform Repo
-        uses: actions/checkout@v3
-        with:
-          repository: your-username/your-terraform-repo # Replace with your Terraform repo
-          path: terraform-code # Checkout Terraform code into a subdirectory
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.0
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./terraform-code
-
-      - name: Terraform Apply for Stage
-        run: terraform apply -auto-approve -var-file=stage.tfvars
-        working-directory: ./terraform-code
-
-  plan-prod:
-    name: Plan Terraform for Prod
-    runs-on: ubuntu-latest
-    needs: apply-stage
-    steps:
-      - name: Checkout Terraform Repo
-        uses: actions/checkout@v3
-        with:
-          repository: your-username/your-terraform-repo # Replace with your Terraform repo
-          path: terraform-code # Checkout Terraform code into a subdirectory
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.0
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./terraform-code
-
-      - name: Terraform Plan for Prod
-        run: terraform plan -var-file=prod.tfvars
-        working-directory: ./terraform-code
-
-  approve-prod:
-    name: Approve Production Deployment
-    runs-on: ubuntu-latest
-    needs: plan-prod
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Wait for Manual Approval
-        run: echo "Manual approval required for production deployment."
-        continue-on-error: true
-
-  apply-prod:
-    name: Apply Terraform for Prod
-    runs-on: ubuntu-latest
-    needs: approve-prod
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout Terraform Repo
-        uses: actions/checkout@v3
-        with:
-          repository: your-username/your-terraform-repo # Replace with your Terraform repo
-          path: terraform-code # Checkout Terraform code into a subdirectory
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.0
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./terraform-code
-
-      - name: Terraform Apply for Prod
-        run: terraform apply -auto-approve -var-file=prod.tfvars
-        working-directory: ./terraform-code
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
