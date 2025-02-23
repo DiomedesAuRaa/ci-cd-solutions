@@ -10,6 +10,10 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   terraform:
     name: 'Terraform Apply'
@@ -58,3 +62,9 @@ jobs:
       - name: Terraform Apply
         working-directory: aws-terraform-stack/eks
         run: terraform apply -var-file=terraform.tfvars -auto-approve
+        
+      # Force Unlock (if needed)
+      - name: Force Unlock Terraform State (if locked)
+        run: |
+          terraform force-unlock $(terraform state list | grep 'terraform.tfstate.lock.info')
+        continue-on-error: true        
