@@ -23,7 +23,7 @@ jobs:
         run: |
           git clone https://github.com/DiomedesAuRaa/aws-terraform-stack.git
           cd aws-terraform-stack/eks
-          ls -lah
+          ls -la aws-terraform-stack/eks
           
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -37,10 +37,13 @@ jobs:
           aws-region: us-east-1
 
       - name: Initialize Terraform
+        working-directory: aws-terraform-stack/eks
         run: terraform init
 
       - name: Terraform Plan
+        working-directory: aws-terraform-stack/eks
         run: terraform plan -out=tfplan
 
       - name: Terraform Apply
+        working-directory: aws-terraform-stack/eks
         run: terraform apply -auto-approve tfplan
