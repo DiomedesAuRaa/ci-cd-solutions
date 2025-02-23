@@ -57,6 +57,7 @@ jobs:
 
       - name: Terraform Plan
         run: |
+          cd aws-terraform-stack/eks 
           terraform plan -out=tfplan
         continue-on-error: true  # This allows the job to continue even if `plan` fails
 
