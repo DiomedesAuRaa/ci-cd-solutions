@@ -29,11 +29,12 @@ jobs:
       - name: Create terraform.tfvars
         working-directory: aws-terraform-stack/eks
         run: |
-          cat <<EOF > terraform.tfvars
+          cat > terraform.tfvars <<EOF
           aws_access_key = "${{ secrets.AWS_ACCESS_KEY_ID }}"
           aws_secret_key = "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           region         = "us-east-1"
-          EOF        
+          EOF
+
           
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
