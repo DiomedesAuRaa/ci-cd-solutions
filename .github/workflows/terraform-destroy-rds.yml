@@ -1,4 +1,4 @@
-name: 'Destroy EC2 Terraform Configuration'
+name: 'Destroy RDS Terraform Configuration'
 
 on:
   workflow_dispatch:  # Manual trigger to destroy infrastructure
@@ -22,10 +22,10 @@ jobs:
           git clone https://github.com/DiomedesAuRaa/aws-terraform-stack.git
 
       - name: Verify Cloned Files
-        run: ls -la aws-terraform-stack/ec2
+        run: ls -la aws-terraform-stack/rds
       
       - name: Create terraform.tfvars
-        working-directory: aws-terraform-stack/ec2
+        working-directory: aws-terraform-stack/
         run: |
           cat > terraform.tfvars <<EOF
           aws_access_key = "${{ secrets.AWS_ACCESS_KEY_ID }}"
@@ -45,11 +45,11 @@ jobs:
           aws-region: us-east-1
 
       - name: Initialize Terraform
-        working-directory: aws-terraform-stack/ec2
+        working-directory: aws-terraform-stack/rds
         run: terraform init
 
       - name: Terraform Destroy with Retry
-        working-directory: aws-terraform-stack/ec2
+        working-directory: aws-terraform-stack/rds
         run: |
           retries=5
           delay=10

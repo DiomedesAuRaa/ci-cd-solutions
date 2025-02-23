@@ -1,15 +1,19 @@
-name: 'Destroy EC2 Terraform Configuration'
+name: 'Apply RDS Terraform Configuration'
 
 on:
-  workflow_dispatch:  # Manual trigger to destroy infrastructure
+  workflow_dispatch:  # Manual trigger to apply infrastructure
 
 permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   terraform:
-    name: 'Terraform Destroy'
+    name: 'Terraform Apply'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     
@@ -22,10 +26,10 @@ jobs:
           git clone https://github.com/DiomedesAuRaa/aws-terraform-stack.git
 
       - name: Verify Cloned Files
-        run: ls -la aws-terraform-stack/ec2
-      
+        run: ls -la aws-terraform-stack/rds
+ 
       - name: Create terraform.tfvars
-        working-directory: aws-terraform-stack/ec2
+        working-directory: aws-terraform-stack/rds
         run: |
           cat > terraform.tfvars <<EOF
           aws_access_key = "${{ secrets.AWS_ACCESS_KEY_ID }}"
@@ -45,22 +49,27 @@ jobs:
           aws-region: us-east-1
 
       - name: Initialize Terraform
-        working-directory: aws-terraform-stack/ec2
+        working-directory: aws-terraform-stack/rds
         run: terraform init
 
-      - name: Terraform Destroy with Retry
-        working-directory: aws-terraform-stack/ec2
+      - name: Terraform Plan with Retry
+        working-directory: aws-terraform-stack/rds
         run: |
           retries=5
           delay=10
           for i in $(seq 1 $retries); do
-            terraform destroy --auto-approve -lock=false && break
-            echo "Terraform destroy failed. Retrying ($i/$retries)..."
+            terraform plan -out=tfplan -lock=false && break
+            echo "Terraform plan failed. Retrying ($i/$retries)..."
             sleep $delay
           done
 
-      - name: Show Terraform Destroy Output (Debugging)
+      - name: Show Terraform Plan Output (Debugging)
         if: failure()  # Only runs if the previous step fails
         run: |
-          echo "Terraform destroy failed, printing debug information..."
-          terraform destroy -auto-approve
+          echo "Terraform plan failed, printing debug information..."
+          terraform plan
+
+      - name: Terraform Apply
+        working-directory: aws-terraform-stack/rds
+        run: terraform apply -lock=false tfplan 
+        if: success()  # Only runs if terraform plan was successful

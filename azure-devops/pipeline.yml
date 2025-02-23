@@ -1,0 +1,44 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  ARM_CLIENT_ID: $(ARM_CLIENT_ID)          # Service Principal Client ID
+  ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)  # Service Principal Client Secret
+  ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID) # Azure Subscription ID
+  ARM_TENANT_ID: $(ARM_TENANT_ID)          # Azure Tenant ID
+  TF_STATE_STORAGE_ACCOUNT: $(TF_STATE_STORAGE_ACCOUNT) # Storage account for Terraform state
+  TF_STATE_CONTAINER: $(TF_STATE_CONTAINER) # Container for Terraform state
+  TF_STATE_KEY: $(TF_STATE_KEY)            # Key for Terraform state file
+
+steps:
+- checkout: git://github.com/DiomedesAuRaa/azure-terraform-stack.git
+  displayName: 'Checkout GitHub Repository'
+
+- script: |
+    echo "Installing Terraform..."
+    wget https://releases.hashicorp.com/terraform/1.5.7/terraform_1.5.7_linux_amd64.zip
+    unzip terraform_1.5.7_linux_amd64.zip
+    sudo mv terraform /usr/local/bin/
+    terraform --version
+  displayName: 'Install Terraform'
+
+- script: |
+    echo "Initializing Terraform..."
+    terraform init -backend-config="storage_account_name=$(TF_STATE_STORAGE_ACCOUNT)" \
+                   -backend-config="container_name=$(TF_STATE_CONTAINER)" \
+                   -backend-config="key=$(TF_STATE_KEY)" \
+                   -backend-config="resource_group_name=tfstate-rg"
+  displayName: 'Terraform Init'
+
+- script: |
+    echo "Validating Terraform configuration..."
+    terraform validate
+  displayName: 'Terraform Validate'
+
+- script: |
+    echo "Applying Terraform configuration..."
+    terraform apply -auto-approve
+  displayName: 'Terraform Apply'

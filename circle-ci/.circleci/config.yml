@@ -1,0 +1,51 @@
+version: 2.1
+
+jobs:
+  terraform-plan:
+    docker:
+      - image: hashicorp/terraform:1.5.7
+    steps:
+      - checkout
+      - run:
+          name: "Initialize Terraform"
+          command: |
+            terraform init \
+              -backend-config="storage_account_name=${TF_STATE_STORAGE_ACCOUNT}" \
+              -backend-config="container_name=${TF_STATE_CONTAINER}" \
+              -backend-config="key=${TF_STATE_KEY}" \
+              -backend-config="resource_group_name=tfstate-rg"
+      - run:
+          name: "Validate Terraform Configuration"
+          command: terraform validate
+      - run:
+          name: "Plan Terraform Configuration"
+          command: terraform plan -out=tfplan
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  terraform-apply:
+    docker:
+      - image: hashicorp/terraform:1.5.7
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Apply Terraform Configuration"
+          command: terraform apply -auto-approve tfplan
+
+workflows:
+  version: 2
+  terraform-deploy:
+    jobs:
+      - terraform-plan:
+          context: terraform-aks-deploy
+      - hold:
+          type: approval
+          requires:
+            - terraform-plan
+      - terraform-apply:
+          context: terraform-aks-deploy
+          requires:
+            - hold

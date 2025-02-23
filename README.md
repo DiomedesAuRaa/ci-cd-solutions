@@ -1,7 +1,3 @@
-Here's a README template for your GitHub repository that explains how to set up and run the Terraform workflow with the GitHub Actions automation:
-
----
-
 # Terraform Automation with GitHub Actions
 
 This repository automates the process of running Terraform plans and applying them using GitHub Actions workflows. It uses a GitHub Actions CI/CD pipeline to deploy infrastructure on AWS, with approval steps integrated via GitHub Environments for manual deployment approval.
