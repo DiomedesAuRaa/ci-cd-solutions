@@ -17,7 +17,7 @@ concurrency:
 jobs:
   terraform:
     name: 'Terraform Apply'
-    environment: production  
+    environment: production 
     runs-on: ubuntu-latest
     timeout-minutes: 30
     
@@ -75,5 +75,5 @@ jobs:
 
       - name: Terraform Apply with Manual Approval
         working-directory: aws-terraform-stack/eks
-        run: terraform apply tfplan  -lock=false 
+        run: terraform apply tfplan -lock=false 
         if: success()  # Only runs if terraform plan was successful
