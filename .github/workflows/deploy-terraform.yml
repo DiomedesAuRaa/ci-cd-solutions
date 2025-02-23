@@ -75,5 +75,5 @@ jobs:
 
       - name: Terraform Apply with Manual Approval
         working-directory: aws-terraform-stack/eks
-        run: terraform apply tfplan -lock=false 
+        run: terraform apply -lock=false tfplan 
         if: success()  # Only runs if terraform plan was successful
