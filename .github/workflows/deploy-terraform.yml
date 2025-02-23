@@ -55,6 +55,18 @@ jobs:
         working-directory: aws-terraform-stack/eks
         run: terraform init
 
+      - name: Force Unlock Before Plan (if locked)
+        run: |
+          cd aws-terraform-stack/eks  # Ensure we're in the correct directory for unlocking
+          LOCK_ID=$(terraform state list | grep -o 'terraform.tfstate.lock.info' || echo "")
+          if [ -n "$LOCK_ID" ]; then
+            echo "Lock found before plan, attempting to force-unlock..."
+            terraform force-unlock $LOCK_ID
+          else
+            echo "No lock found before plan, skipping unlock."
+          fi
+        continue-on-error: true
+
       - name: Terraform Plan
         run: |
           cd aws-terraform-stack/eks 
