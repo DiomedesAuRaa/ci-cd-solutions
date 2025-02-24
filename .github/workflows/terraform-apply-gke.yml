@@ -1,0 +1,63 @@
+name: 'Apply GKE Terraform Configuration'
+
+on:
+    workflow_dispatch:  # Manual trigger to apply infrastructure  
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+
+#TODO GET AUTH
+
+jobs:
+  terraform:
+    name: 'Terraform Apply'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Clone External Terraform Repository
+      run: |
+        git clone https://github.com/DiomedesAuRaa/gcp-terraform-stack.git
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: latest
+
+    - name: Terraform Init
+      working-directory: gcp-terraform-stack/gke
+      run: terraform init
+      env:
+        ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+        ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+        ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+
+    - name: Terraform Plan
+      working-directory: gcp-terraform-stack/gke
+      run: terraform plan -out=tfplan
+      env:
+        ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+        ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+        ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+
+    - name: Show Terraform Plan Output (Debugging)
+      if: failure()  # Only runs if the previous step fails
+      run: |
+          echo "Terraform plan failed, printing debug information..."
+          terraform plan
+
+    - name: Terraform Apply
+      working-directory: gcp-terraform-stack/gke
+      run: terraform apply -auto-approve tfplan
+      env:
+
