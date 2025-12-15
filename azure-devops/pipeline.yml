@@ -12,33 +12,133 @@ variables:
   TF_STATE_STORAGE_ACCOUNT: $(TF_STATE_STORAGE_ACCOUNT) # Storage account for Terraform state
   TF_STATE_CONTAINER: $(TF_STATE_CONTAINER) # Container for Terraform state
   TF_STATE_KEY: $(TF_STATE_KEY)            # Key for Terraform state file
+  TF_VERSION: '1.9.8'                       # Terraform version to use
+  WORKING_DIRECTORY: 'azure-terraform-stack/aks'
 
-steps:
-- checkout: git://github.com/DiomedesAuRaa/azure-terraform-stack.git
-  displayName: 'Checkout GitHub Repository'
-
-- script: |
-    echo "Installing Terraform..."
-    wget https://releases.hashicorp.com/terraform/1.5.7/terraform_1.5.7_linux_amd64.zip
-    unzip terraform_1.5.7_linux_amd64.zip
-    sudo mv terraform /usr/local/bin/
-    terraform --version
-  displayName: 'Install Terraform'
-
-- script: |
-    echo "Initializing Terraform..."
-    terraform init -backend-config="storage_account_name=$(TF_STATE_STORAGE_ACCOUNT)" \
-                   -backend-config="container_name=$(TF_STATE_CONTAINER)" \
-                   -backend-config="key=$(TF_STATE_KEY)" \
-                   -backend-config="resource_group_name=tfstate-rg"
-  displayName: 'Terraform Init'
-
-- script: |
-    echo "Validating Terraform configuration..."
-    terraform validate
+stages:
+- stage: Validate
   displayName: 'Terraform Validate'
+  jobs:
+  - job: ValidateTerraform
+    displayName: 'Validate Terraform Configuration'
+    steps:
+    - checkout: git://github.com/DiomedesAuRaa/azure-terraform-stack.git
+      displayName: 'Checkout GitHub Repository'
 
-- script: |
-    echo "Applying Terraform configuration..."
-    terraform apply -auto-approve
+    - task: TerraformInstaller@1
+      displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: $(TF_VERSION)
+
+    - script: |
+        echo "Initializing Terraform..."
+        terraform init -backend-config="storage_account_name=$(TF_STATE_STORAGE_ACCOUNT)" \
+                       -backend-config="container_name=$(TF_STATE_CONTAINER)" \
+                       -backend-config="key=$(TF_STATE_KEY)" \
+                       -backend-config="resource_group_name=tfstate-rg"
+      displayName: 'Terraform Init'
+      workingDirectory: $(WORKING_DIRECTORY)
+      env:
+        ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+        ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+        ARM_TENANT_ID: $(ARM_TENANT_ID)
+
+    - script: |
+        echo "Validating Terraform configuration..."
+        terraform validate
+      displayName: 'Terraform Validate'
+      workingDirectory: $(WORKING_DIRECTORY)
+
+- stage: Plan
+  displayName: 'Terraform Plan'
+  dependsOn: Validate
+  jobs:
+  - job: PlanTerraform
+    displayName: 'Plan Terraform Configuration'
+    steps:
+    - checkout: git://github.com/DiomedesAuRaa/azure-terraform-stack.git
+      displayName: 'Checkout GitHub Repository'
+
+    - task: TerraformInstaller@1
+      displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: $(TF_VERSION)
+
+    - script: |
+        echo "Initializing Terraform..."
+        terraform init -backend-config="storage_account_name=$(TF_STATE_STORAGE_ACCOUNT)" \
+                       -backend-config="container_name=$(TF_STATE_CONTAINER)" \
+                       -backend-config="key=$(TF_STATE_KEY)" \
+                       -backend-config="resource_group_name=tfstate-rg"
+      displayName: 'Terraform Init'
+      workingDirectory: $(WORKING_DIRECTORY)
+      env:
+        ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+        ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+        ARM_TENANT_ID: $(ARM_TENANT_ID)
+
+    - script: |
+        echo "Planning Terraform configuration..."
+        terraform plan -out=tfplan
+      displayName: 'Terraform Plan'
+      workingDirectory: $(WORKING_DIRECTORY)
+      env:
+        ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+        ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+        ARM_TENANT_ID: $(ARM_TENANT_ID)
+
+    - publish: $(WORKING_DIRECTORY)/tfplan
+      artifact: tfplan
+      displayName: 'Publish Terraform Plan'
+
+- stage: Apply
   displayName: 'Terraform Apply'
+  dependsOn: Plan
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: ApplyTerraform
+    displayName: 'Apply Terraform Configuration'
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: git://github.com/DiomedesAuRaa/azure-terraform-stack.git
+            displayName: 'Checkout GitHub Repository'
+
+          - task: TerraformInstaller@1
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: $(TF_VERSION)
+
+          - download: current
+            artifact: tfplan
+            displayName: 'Download Terraform Plan'
+
+          - script: |
+              echo "Initializing Terraform..."
+              terraform init -backend-config="storage_account_name=$(TF_STATE_STORAGE_ACCOUNT)" \
+                             -backend-config="container_name=$(TF_STATE_CONTAINER)" \
+                             -backend-config="key=$(TF_STATE_KEY)" \
+                             -backend-config="resource_group_name=tfstate-rg"
+            displayName: 'Terraform Init'
+            workingDirectory: $(WORKING_DIRECTORY)
+            env:
+              ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+              ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+              ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+              ARM_TENANT_ID: $(ARM_TENANT_ID)
+
+          - script: |
+              echo "Applying Terraform configuration..."
+              terraform apply -auto-approve $(Pipeline.Workspace)/tfplan/tfplan
+            displayName: 'Terraform Apply'
+            workingDirectory: $(WORKING_DIRECTORY)
+            env:
+              ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+              ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+              ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+              ARM_TENANT_ID: $(ARM_TENANT_ID)

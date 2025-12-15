@@ -1,6 +1,7 @@
 # Ignore all .sh scripts with "setup" in the name
 *setup*.sh
 trust-policy.json
+
 # Terraform state files
 *.tfstate
 *.tfstate.backup
@@ -8,6 +9,11 @@ terraform.tfstate.d/
 
 # Terraform crash logs
 crash.log
+crash.*.log
+
+# Terraform plan files
+*.tfplan
+tfplan
 
 # Ignore Terraform provider plugins
 .terraform/
@@ -15,11 +21,39 @@ crash.log
 
 # Ignore environment variable files
 .env
+.env.*
+*.env
 
-# Ignore sensitive AWS credentials (if any)
+# Ignore sensitive credentials
 .aws/
+credentials
+*.pem
+*.key
 
 # Ignore IDE-specific files
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# CI/CD artifacts
+.circleci/workspace/
+.gitlab/artifacts/
+jenkins/workspace/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/

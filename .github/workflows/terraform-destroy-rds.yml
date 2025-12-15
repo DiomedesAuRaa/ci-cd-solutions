@@ -7,6 +7,10 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: terraform-rds-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   terraform:
     name: 'Terraform Destroy'
@@ -25,7 +29,7 @@ jobs:
         run: ls -la aws-terraform-stack/rds
       
       - name: Create terraform.tfvars
-        working-directory: aws-terraform-stack/
+        working-directory: aws-terraform-stack/rds
         run: |
           cat > terraform.tfvars <<EOF
           aws_access_key = "${{ secrets.AWS_ACCESS_KEY_ID }}"

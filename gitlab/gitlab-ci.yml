@@ -1,7 +1,9 @@
 stages:
   - init
   - validate
+  - plan
   - apply
+  - destroy
 
 variables:
   TF_STATE_STORAGE_ACCOUNT: $TF_STATE_STORAGE_ACCOUNT
@@ -11,34 +13,69 @@ variables:
   ARM_CLIENT_SECRET: $ARM_CLIENT_SECRET
   ARM_SUBSCRIPTION_ID: $ARM_SUBSCRIPTION_ID
   ARM_TENANT_ID: $ARM_TENANT_ID
+  TF_IN_AUTOMATION: "true"
+
+default:
+  image: hashicorp/terraform:1.9.8
+
+cache:
+  key: terraform-cache
+  paths:
+    - .terraform/
 
 terraform-init:
   stage: init
-  image: hashicorp/terraform:1.5.7
   script:
-    - terraform init \
-      -backend-config="storage_account_name=${TF_STATE_STORAGE_ACCOUNT}" \
-      -backend-config="container_name=${TF_STATE_CONTAINER}" \
-      -backend-config="key=${TF_STATE_KEY}" \
+    - terraform init
+      -backend-config="storage_account_name=${TF_STATE_STORAGE_ACCOUNT}"
+      -backend-config="container_name=${TF_STATE_CONTAINER}"
+      -backend-config="key=${TF_STATE_KEY}"
       -backend-config="resource_group_name=tfstate-rg"
   artifacts:
     paths:
       - .terraform
+    expire_in: 1 hour
 
 terraform-validate:
   stage: validate
-  image: hashicorp/terraform:1.5.7
   script:
     - terraform validate
   dependencies:
     - terraform-init
 
+terraform-plan:
+  stage: plan
+  script:
+    - terraform plan -out=tfplan
+  artifacts:
+    paths:
+      - tfplan
+    expire_in: 1 hour
+  dependencies:
+    - terraform-init
+
 terraform-apply:
   stage: apply
-  image: hashicorp/terraform:1.5.7
   script:
-    - terraform apply -auto-approve
+    - terraform apply -auto-approve tfplan
   dependencies:
-    - terraform-validate
+    - terraform-init
+    - terraform-plan
   only:
     - main
+  when: manual
+  environment:
+    name: production
+
+terraform-destroy:
+  stage: destroy
+  script:
+    - terraform destroy -auto-approve
+  dependencies:
+    - terraform-init
+  only:
+    - main
+  when: manual
+  environment:
+    name: production
+    action: stop

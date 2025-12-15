@@ -1,7 +1,7 @@
-name: 'Apply GKE Terraform Configuration'
+name: 'Destroy GKE Terraform Configuration'
 
 on:
-  workflow_dispatch:  # Manual trigger to apply infrastructure  
+  workflow_dispatch:  # Manual trigger to destroy infrastructure  
 
 permissions:
   id-token: write
@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   terraform:
-    name: 'Terraform Apply'
+    name: 'Terraform Destroy'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -57,13 +57,9 @@ jobs:
       env:
         GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
 
-    - name: Terraform Validate
+    - name: Terraform Plan (Destroy)
       working-directory: gcp-terraform-stack/gke
-      run: terraform validate
-
-    - name: Terraform Plan
-      working-directory: gcp-terraform-stack/gke
-      run: terraform plan -out=tfplan
+      run: terraform plan -destroy -out=tfplan
       env:
         GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
 
@@ -71,12 +67,11 @@ jobs:
       if: failure()
       working-directory: gcp-terraform-stack/gke
       run: |
-        echo "Terraform plan failed, printing debug information..."
-        terraform plan
+        echo "Terraform destroy plan failed, printing debug information..."
+        terraform plan -destroy
 
-    - name: Terraform Apply
+    - name: Terraform Apply (Destroy)
       working-directory: gcp-terraform-stack/gke
       run: terraform apply -auto-approve tfplan
       env:
         GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-
